@@ -1,0 +1,31 @@
+{
+  "name": "adrian-skills",
+  "description": "Personal collection of agent skills covering daily engineering work, language/library-specific code rules, productivity workflows, and reference material.",
+  "skills": [
+    "./skills/engineering/code-simplification",
+    "./skills/engineering/diagnose",
+    "./skills/engineering/documentation",
+    "./skills/engineering/grill-with-docs",
+    "./skills/engineering/improve-codebase-architecture",
+    "./skills/engineering/review",
+    "./skills/engineering/security",
+    "./skills/engineering/setup-engineering-skills",
+    "./skills/engineering/tdd",
+    "./skills/engineering/to-issues",
+    "./skills/engineering/to-prd",
+    "./skills/engineering/triage",
+    "./skills/engineering/zoom-out",
+    "./skills/stack/api-and-interface-design",
+    "./skills/stack/avoid-use-effect",
+    "./skills/stack/ci-cd-and-automation",
+    "./skills/stack/frontend-ui-engineering",
+    "./skills/stack/git-worktree-conventions",
+    "./skills/productivity/caveman",
+    "./skills/productivity/grill-me",
+    "./skills/productivity/handoff",
+    "./skills/productivity/natural-writing",
+    "./skills/productivity/write-a-skill",
+    "./skills/misc/git-guardrails-claude-code",
+    "./skills/misc/migrate-to-shoehorn"
+  ]
+}
