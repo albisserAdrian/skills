@@ -4,6 +4,7 @@ Skills I use daily for code work.
 
 > **Start here in each repo:** run [`setup-engineering-skills`](./setup-engineering-skills/SKILL.md) once before using the others. It records this repo's issue tracker, triage labels, domain doc layout, and branching/worktree workflow into `docs/agents/` so `to-prd`, `to-issues`, `triage`, and the rest behave correctly here. The flow-oriented skills (`to-prd`, `to-issues`, `triage`) will tell you to run it if it hasn't been.
 
+- **[start](./start/SKILL.md)**: originate new work safely: create the anchor issue and a branch/worktree off `main` before any files are written, then hand off to `grill-with-docs`.
 - **[diagnose](./diagnose/SKILL.md)**: disciplined diagnosis loop for hard bugs and performance regressions: reproduce → minimise → hypothesise → instrument → fix → regression-test.
 - **[grill-with-docs](./grill-with-docs/SKILL.md)**: grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates `CONTEXT.md` and ADRs inline.
 - **[triage](./triage/SKILL.md)**: triage issues through a state machine of triage roles.
