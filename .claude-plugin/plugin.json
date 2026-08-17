@@ -2,6 +2,7 @@
   "name": "adrian-skills",
   "description": "Personal collection of agent skills covering daily engineering work, language/library-specific code rules, productivity workflows, and reference material.",
   "skills": [
+    "./skills/engineering/assess-codebase",
     "./skills/engineering/code-simplification",
     "./skills/engineering/diagnose",
     "./skills/engineering/documentation",

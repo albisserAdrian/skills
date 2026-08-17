@@ -30,6 +30,7 @@ When a user request matches a skill, the agent must invoke it rather than implem
 | Hard bug, crash, failing test, performance regression | `diagnose` |
 | Test-first development, red-green-refactor, building a feature | `tdd` |
 | Code review, second opinion before merge, evaluating another agent's output | `review` |
+| Whole-system production-readiness assessment, inherited or AI-generated app, go/no-go for management | `assess-codebase` |
 | Anything touching user input, auth, sessions, secrets, file uploads, external APIs | `security` |
 | Cleaning up working code for clarity (no behaviour change) | `code-simplification` |
 | Structural / architectural change, finding deepening opportunities | `improve-codebase-architecture` |

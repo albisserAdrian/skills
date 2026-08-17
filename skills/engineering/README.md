@@ -10,6 +10,7 @@ Skills I use daily for code work.
 - **[triage](./triage/SKILL.md)**: triage issues through a state machine of triage roles.
 - **[improve-codebase-architecture](./improve-codebase-architecture/SKILL.md)**: find deepening opportunities in a codebase, informed by the domain language in `CONTEXT.md` and the decisions in `docs/adr/`.
 - **[review](./review/SKILL.md)**: five-axis code review across correctness, readability, architecture, security, and performance, with severity-tagged findings.
+- **[assess-codebase](./assess-codebase/SKILL.md)**: whole-system assessment of an existing codebase for production fitness, across security, data integrity, correctness, platform, practice and governance. Produces an executive summary for non-engineers alongside the technical report. Use `review` for a single change.
 - **[security](./security/SKILL.md)**: security playbook organised as three tiers (always-do, ask-first, never-do) plus an OWASP-shaped issue list and dependency-vulnerability triage tree.
 - **[setup-engineering-skills](./setup-engineering-skills/SKILL.md)**: scaffolds the `## Agent skills` block in CLAUDE.md/AGENTS.md and `docs/agents/` so the engineering skills know this repo's issue tracker, triage labels, domain doc layout, and branching/worktree workflow. Run before first use of `to-prd`, `to-issues`, `triage`, etc.
 - **[code-simplification](./code-simplification/SKILL.md)**: simplify code for clarity while preserving exact behaviour. Covers expression-level cleanup; structural changes belong in `improve-codebase-architecture`.
