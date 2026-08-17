@@ -6,7 +6,7 @@ Failure modes of the assessor, not of the codebase. Every one below was committe
 
 The single most common source of error. In one assessment, five published figures were wrong, and **every one came from a subagent report rather than from a check run personally.** Every figure verified directly held up.
 
-Subagents are fast, thorough and confidently wrong at a meaningful rate. They miscount, they scope a grep differently than they describe, and they round a conclusion toward the hypothesis they were given.
+Subagents are fast and thorough, and wrong often enough to matter. They miscount, they scope a grep differently than they describe, and they round a conclusion toward the hypothesis they were given.
 
 Before any number reaches the output, run the measurement yourself. If that is impractical for a figure, either drop it or mark it as unverified in the text. An unverified number in a report is worse than a missing one, because it is the thing a defender will check first.
 
@@ -82,7 +82,7 @@ After any correction, grep the whole deliverable set for the old figure and the 
 
 Requirements live where the author was comfortable writing them. For a non-technical author that is Word, Excel or PowerPoint, not markdown.
 
-In one assessment a repository held twenty-five Word volumes, a feature-inventory spreadsheet and an executive deck. A markdown-only reading returned none of them. The technical content happened to be mirrored in markdown, so nothing critical was lost, but that was luck rather than method, and the spreadsheet carried the business view, what each module was for and what problem it solved, which is exactly the material intake and the executive summary need.
+In one assessment a repository held two dozen Word documents, a feature spreadsheet and a slide deck. A markdown-only reading returned none of them. The technical content happened to be mirrored in markdown, so nothing critical was lost, but that was luck rather than method, and the spreadsheet carried the business view, what each module was for and what problem it solved, which is exactly the material intake and the executive summary need.
 
 Office formats are ZIP archives of XML and read with the standard library alone. There is no excuse for skipping them.
 
@@ -97,6 +97,76 @@ This is the same error the rest of this file warns about, turned on the assessor
 Sanitise by class, not by instance:
 
 - **Every quantity**, not the memorable ones. Strip code fences and look at every number of three digits or more, every ratio, every "N times" and every written-out multiplier.
-- **Every example framed as something that happened.** An illustration says "a calculation returning a constant"; a disclosure says "the forecast was overstated twentyfold". Both teach the same lesson and only one names a system.
+- **Every example framed as something that happened.** An illustration says "a calculation returning a constant where it should vary"; a disclosure says "their board pack overstated the forecast fortyfold". Both teach the same lesson and only one names a system.
 - **Every domain noun.** The vocabulary of the client's industry is as identifying as its name.
 - **Then have someone else read it.** The author knows what was removed and reads past what was not. This one was caught by a reader, not by a script.
+
+## Counting things instead of running them
+
+Structural probes are seductive because they scale: a grep produces a ratio, a ratio looks like evidence, and a page of ratios reads as thorough. They are also blind to an entire class of defect.
+
+A formula that computes the wrong thing has no structural signature. It passes type checking, it has no unusual shape, and no count will surface it. It can only be found by reading the calculation and executing it with realistic inputs.
+
+In one test of this method, a run that covered every dimension and produced a substantial, well-evidenced findings list missed a calculation that had been returning a fixed value on every day of every year since the system was written, inflating a headline figure by more than an order of magnitude on the screens most senior people read. Everything structural around it was found. Nobody ran the arithmetic.
+
+The correction is not more greps. It is one hour, spent deliberately, listing the calculations whose output people act on and running each of them. A clamp firing on every ordinary input, a magic constant in date arithmetic, and a widely-called function with one commit are the three tells worth knowing.
+
+The same blindness applies to compounding. Six findings listed separately understate the risk of all six landing on the same routine operation. Trace one operation end to end and count the layers that would catch a failure; zero or one is a different statement from six bullet points.
+
+## Delivering findings instead of an assessment
+
+A list of findings answers what is wrong. It does not answer why it will happen again, or what the person inheriting the system actually faces. Those are separate questions, and neither falls out of the audit work by itself.
+
+The failure is subtle because nothing is missing. In one test of this method the run measured the constraint decline, the reading load of the schema, the untouched modules and the self-contradicting documentation, and reported all four correctly, each inside a different finding. Nobody assembled them. The report told the reader that constraint density fell, and never told them why, or that a team of three would meet the same limit, or that the tool which built the system cannot safely maintain it either.
+
+The measurements were all there. The two conclusions that a technical leader actually plans from were not.
+
+Make synthesis an explicit step before drafting, and treat both sections as required output rather than as commentary if there is room. The causal section is also what stops the report reading as a judgement on a person, which is frequently what decides whether any of it gets acted on.
+
+## Recommending repair or replace, as though those were the options
+
+The disposition is usually presented as a binary, and the binary is wrong often enough that it is worth treating as a default error.
+
+The missing option is absorbing the proven functionality into a platform the organisation already runs. It is missed for a simple reason: the assessor is looking at one repository and never asks what else exists. Nothing in a codebase tells you that another team already operates a platform with continuous integration, tests, deployment, monitoring, a data layer and recorded decisions, which is precisely the list the findings say this system lacks.
+
+Two things make it the right answer more often than it is chosen.
+
+Same language is not the same platform. Two systems can share a language and a UI library and still differ in routing, data loading, build, deployment, conventions and half their dependencies. Recommending repair commits the organisation to operating a second platform permanently, and that ongoing cost never appears in the repair estimate.
+
+Absorb is frequently faster than repair, which inverts the usual assumption. The expensive part of building software is working out what the business actually needs, and a system people have used has already paid it. Porting from working software is transcription against a reference, not construction from a specification, while the receiving platform supplies the foundations the findings list as missing.
+
+The correction is an intake question, not a technique: ask what else the organisation runs before writing any recommendation. Then produce the split the choice requires, commodity against differentiating, since the commodity half usually should not move at all.
+
+A related failure in the executive summary: giving five reasons because five findings felt important. Three is what survives a meeting. Findings that cost the business the same thing are one reason regardless of their technical cause, and a reason still naming a mechanism, backups, transactions, tests, has not finished being translated into money and time.
+
+## Judging technology in the abstract
+
+An assessment that reports a database engine, a hosting model or a runtime without reference to what the organisation already runs has produced an inventory, not a finding.
+
+The technologies in these systems are usually fine. They were chosen by a model optimising for something that works, and what works is generally mainstream. Reporting them as neutral facts, or worse defending them as reasonable, misses the actual cost: adopting a choice that differs from an established standard means operating two of everything, permanently, and that tax never appears in a repair estimate.
+
+Worse is the case where the organisation has already migrated away from the choice. Then adoption does not merely add a second thing to operate, it reverses work that has been completed and paid for, and reopens an argument that was settled. Divergence and regression should be labelled differently because they cost differently.
+
+The correction is an intake question rather than a technique: ask what the standard is and what is deliberately being exited, before forming any view on the technology. Then ask whether the choice is a configuration or is architected in, because that distinction, not the technology, sets the cost of changing it.
+
+## Mistaking import machinery for a migration plan
+
+Where existing data has to be brought in, the migration is frequently the largest single item in the programme and the last one examined.
+
+The trap is that the scaffolding looks like readiness. Staging tables, batch tracking with accepted and rejected counts, mapping and alias tables, a handful of source-identifier columns: all present, all sensible, and none of it evidence that anybody opened the source system.
+
+The distinction is between machinery and specification. Generic staging that accepts arbitrary input and maps it afterwards is precisely what gets built when the shape of the source is unknown. It is the flexible choice, and its flexibility is the tell.
+
+In one assessment the finding was reported as an absence of source identifiers, which turned out to be wrong on the count and to be answering a smaller question than the one that mattered. The identifiers existed. What did not exist was any evidence that the incumbent system's schema had ever been looked at, which is what decides whether the migration is a transformation exercise or a discovery exercise first.
+
+Ask for the source schema and a row count at intake. Then check for granularity mismatches, identifier strategy and whether both systems will run in parallel, because each of those is a redesign rather than a mapping and none of them is visible from the target codebase alone.
+
+## Crediting a test plan as testing
+
+Test checklists, UAT packs and acceptance criteria are inexpensive to produce and frequently exist in quantity. Their presence proves that somebody anticipated testing. It proves nothing about whether testing happened.
+
+In one assessment several comprehensive checklists covered workflows, permissions, acceptance and smoke coverage. Every one had been written on the day the system was first committed, none had been touched since, and across all of them not a single item was ticked. The plans were thorough. The execution was zero, and an assessment that listed the checklists under documentation would have credited the system with verification it never had.
+
+Check for execution rather than intent: ticked against unticked, the date the file was last touched, whether there are result, tester and date columns rather than only steps, and whether a real pass left the artefacts it leaves behind, screenshots, a defect log, issues raised while testing.
+
+The finding is worth reporting because it cannot be argued with. Zero ticked out of several hundred needs no interpretation, and the consequence follows directly: nothing has confirmed that what the screens display matches what the data holds, so every figure a user has seen is unverified.

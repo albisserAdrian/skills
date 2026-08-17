@@ -20,7 +20,137 @@ git show --stat --format="" $(git rev-list --max-parents=0 HEAD) | tail -1   # s
 
 A very large initial commit means the bulk of the system arrived without review history. Say so.
 
-**How much must be held in view.** Divide bytes by ~3.6 for a token estimate. Compare the data model alone against a working context window. If the schema does not fit alongside the code being changed, relationship-level mistakes are structurally likely, for people and tools alike.
+## How much must be held in view
+
+Produce this as a table, not a remark. It is the evidence for the inheritance section, and a number people grasp immediately.
+
+```bash
+for d in "the data model:prisma/schema.prisma" "business logic:lib" \
+         "screens and actions:app" "interface components:components"; do
+  label=${d%%:*}; path=${d##*:}
+  lines=$(find $path -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.prisma' \) \
+          -not -path '*/node_modules/*' 2>/dev/null | xargs cat 2>/dev/null | wc -l)
+  bytes=$(find $path -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.prisma' \) \
+          -not -path '*/node_modules/*' 2>/dev/null | xargs cat 2>/dev/null | wc -c)
+  printf "%-24s %8s lines  ~%6.0fk tokens\n" "$label" "$lines" "$(echo "$bytes/3600" | bc -l)"
+done
+```
+
+Divide bytes by roughly 3.6 for a token estimate. **The row that matters is the data model**, because deciding whether a change is safe usually means knowing how tables relate. If the schema alone consumes most of a working context, then anyone changing code either loads the whole model and has no room for the code, or works without sight of the relationships. The second is what produces hand-written joins and unenforced references, and it applies to people and tools alike.
+
+## Platform alignment
+
+Establish what the system actually chose, then compare it against the standard and direction from intake question 12. Without that answer this probe produces a list of technologies and no finding.
+
+```bash
+# data layer: engine, version, and anything engine-specific
+grep -n 'provider' prisma/schema.prisma drizzle.config.* 2>/dev/null
+grep -rn 'mysql\|mariadb\|postgres\|sqlite\|mssql' docker-compose.yml .env.example 2>/dev/null
+grep -rin 'ONLY_FULL_GROUP_BY\|LIMIT 18446744\|::jsonb\|ILIKE\|RETURNING' \
+  --include='*.ts' --include='*.sql' . 2>/dev/null | head   # engine-locked SQL
+
+# hosting and runtime model
+ls Dockerfile* docker-compose*.yml *.tf *.yaml 2>/dev/null
+grep -rn 'output:' next.config.* 2>/dev/null                # standalone vs server
+grep -rn 'localhost\|/home/\|/var/www\|C:\\\\' --include='*.ts' --include='*.mjs' . 2>/dev/null | head
+
+# what pins it to one long-lived machine
+grep -rn 'writeFile\|createWriteStream\|os.tmpdir\|process.cwd' lib app --include='*.ts' | head
+grep -rn 'let [a-zA-Z]* = \(false\|null\|new Map\)' lib app --include='*.ts' | head   # in-process state
+```
+
+Report each choice in a table with three columns: what this system uses, what the organisation's standard is, and the classification. Matches, diverges, or regresses.
+
+Two things decide the severity, and neither is the technology itself.
+
+**Is it a regression or merely a divergence?** A sound choice that differs from the standard costs a permanent second thing to operate. A choice the organisation has already migrated away from costs that, plus the reversal of completed work, plus having the original argument again. The second is materially worse and should be labelled as such.
+
+**Is it configuration or architecture?** Ask what would have to change. An engine swap before real data exists is small and worth doing immediately. An application whose file handling, background work and session model all assume one machine with local disk is architected around the choice, and the migration cost belongs in the estimate.
+
+The probes above answer the second question directly. Local filesystem writes, in-process mutable state and absolute host paths are the three signals that a hosting model is baked in rather than configured, and they are the same signals that determine whether the system can run as more than one instance.
+
+Engine-locked SQL matters for the same reason. Raw queries using one engine's dialect turn a configuration change into a rewrite of every raw query, so count them before estimating.
+
+## Migration readiness
+
+Where years of history must come in from an existing system, this is frequently the largest line item and the one found last. Two separate questions, and conflating them is the usual error.
+
+**One: is there import machinery?**
+
+```bash
+grep -ocE '^model [A-Za-z]*(Import|Staging|Stg|Raw|Landing|Ext)[A-Za-z]*' <schema>
+grep -oiE '^model [A-Za-z]*(Mapping|Alias|Canon|Xref|Lookup|Legacy)[A-Za-z]*' <schema>
+grep -cE '^\s+(sourceSystem|sourceRecordId|legacyId|externalId|sourceRef)\s' <schema>
+grep -n -A20 '^model ImportBatch' <schema> | grep -iE 'rowsAccepted|rowsRejected|status|validation'
+```
+
+**Two, and this is the one that matters: was the target designed against the actual source?** Machinery proves somebody anticipated an import. It does not prove anybody looked at what is coming.
+
+The tells that the source was **not** examined:
+
+- **Generic staging.** A landing table holding `rawJson` and `mappedJson` accepts anything and defers the mapping. Flexible, and a sign the shape was unknown when it was written.
+- **Mapping tables with no rows and no seed.** The structure exists, the content was never specified.
+- **Enumerations that look invented.** Status and type values that read as designed from first principles rather than derived from what the source actually contains.
+- **The import path never exercised.** Cross-reference against per-module iteration counts. A migration path with one commit was never run against anything real.
+- **No profiling artefact anywhere.** No row counts, distinct-value lists, null-rate notes or sample extracts in the repository or the documentation.
+
+The tells that it **was**: staging columns mirroring a specific source system's fields, a documented field-level mapping, enumerations whose values match the source's, and handling for named quirks of that source.
+
+**If the source was not examined, say what that means in the estimate**, because it changes the shape of the work rather than its size. The migration becomes a discovery exercise before a transformation one: profile the source, write the field-level mapping, decide what happens to source fields with no destination and to required destination fields with no source, then reconcile totals and handle the residue.
+
+Three structural mismatches to check for explicitly, because each is a redesign rather than a mapping:
+
+```bash
+# does the target hold enough to represent the source's granularity?
+grep -cE '^model ' <schema>              # target entity count, against the source's
+grep -nE '@id|@@id|@unique|@@unique' <schema> | head    # identifier strategy
+```
+
+- **Granularity.** One row per transaction against one per line, one contact per organisation against many. A mismatch here means restructuring, not translating.
+- **Identifiers.** Composite natural keys in the source against generated integers in the target means every relationship is rebuilt during load, in dependency order, with a lookup held throughout.
+- **Parallel running.** If both systems operate at once, a one-off migration becomes an ongoing bidirectional sync with conflict rules. That is a different commitment and it is rarely costed.
+
+## What is worth taking
+
+Absorbing into an existing platform needs a different measurement from repairing in place: not what is broken, but what is worth moving. Produce the split explicitly.
+
+```bash
+# commodity versus differentiating, by module
+ls lib/ | while read m; do
+  n=$(git log --oneline -- "lib/$m" | wc -l)
+  printf "%4d  lib/%s\n" "$n" "$m"
+done | sort -rn
+```
+
+High iteration means used and refined; one commit means never opened. Then classify each surviving module by hand into commodity (contacts, files, auth, notes, calendars, generic admin) and differentiating (whatever encodes this business's own rules). The commodity half usually should not be ported at all, since a receiving platform either already has it or can buy it, and that split alone often removes more than half the work.
+
+Then check whether the domain rules travel:
+
+```bash
+grep -rl 'export function\|export const' lib/<differentiating-module> | head
+grep -rn '<differentiating concept>' app components | wc -l   # is the rule in one place or forty
+```
+
+A rule expressed in a named calculation module, a rules register, or a methodology document moves cleanly. The same rule spread across forty screens does not, and that distinction changes the estimate more than any count of defects.
+
+## Is the domain knowledge recoverable
+
+The question a team inheriting this has to answer before they can safely change anything, and the one most likely to come back better than feared.
+
+```bash
+find docs -name '*.md' | xargs wc -l | sort -n | tail -20
+git log -1 --format='%ad' --date=short -- docs/          # is any of it maintained
+grep -rliE 'methodology|glossary|business rule|register|decision record' docs/ | head
+grep -rc 'Verified\|verified' <(git log --format='%B')   # do commit bodies carry evidence
+```
+
+Look for three things specifically, because their presence changes the handover risk materially:
+
+- **A methodology or calculation document** that states a root cause, the corrected formula and a measured before-and-after. That is analysis rather than narrative and it means correctness is knowable without the author.
+- **A glossary** with precise, non-generic definitions of the trade vocabulary. Generic definitions mean it was generated; specific ones mean somebody knew the domain.
+- **A rules register extracted mechanically** from live configuration rather than written by hand, since that reflects the system as it actually runs.
+
+Then check the other direction. A document a newcomer trusts on day one and which is **wrong** is worse than no document. Check the architecture overview against reality, check whether any document lists shipped modules as unbuilt, and read any quality report the documentation set produced about itself, since those often admit which claims were never verified.
 
 ## Claimed against actual
 
@@ -156,7 +286,7 @@ for a, _ in allow.items():
 EOF
 ```
 
-In one assessment this found a thoughtfully built allowlist that had come apart: six packages pinned by exact version, but an `overrides` entry had bumped one of them past its pin, so the allowlist entry no longer matched the installed version, while a different package that does run install scripts was not listed at all. The control looked present in the manifest and covered neither of the things it was supposed to.
+In one assessment this found a thoughtfully built allowlist that had come apart: a handful of packages pinned by exact version, but an `overrides` entry had bumped one of them past its pin, so the allowlist entry no longer matched the installed version, while a different package that does run install scripts was not listed at all. The control looked present in the manifest and covered neither of the things it was supposed to.
 
 Report both halves. Controls that exist are a genuine strength and belong in the report; a control that has drifted is a finding in its own right, distinct from never having had one.
 
@@ -174,6 +304,112 @@ grep -rlniE 'secretsmanager|vault|doppler|keyvault|1password' . \
 Never `cat` these. The findings are: whether secrets sit in a file on disk rather than a managed store, whether one was ever committed, how many distinct secrets share a single file, and whether one key serves several purposes.
 
 That last one matters more than it looks. A single signing key covering sessions, second-factor challenges and an external portal means rotating it logs everybody out simultaneously, which is why rotation gets deferred indefinitely and why the key stays valid long after it should have changed.
+
+## Has anyone looked at the screens
+
+Distinct from both "has this code ever run" and "does the calculation compute the right thing", and it catches what neither does. A screen can execute cleanly, contain arithmetically correct functions, and still show the wrong thing: the query filters on the wrong column, the label does not match the value beneath it, the form writes to a different field than the one it displays, the total sums a column nobody intended. Nothing static finds these. Somebody has to look at the screen with known data and check.
+
+**Look for evidence of execution, not for a plan.** Test checklists, UAT packs and acceptance criteria are cheap to generate and frequently exist in quantity. That proves somebody anticipated testing.
+
+```bash
+find docs -iname '*test*' -o -iname '*uat*' -o -iname '*acceptance*' -o -iname '*smoke*'
+
+for f in <the files found>; do
+  echo "$f  last touched: $(git log -1 --format=%ad --date=short -- "$f")"
+  echo "   ticked: $(grep -c '\[x\]' "$f")   unticked: $(grep -c '\[ \]' "$f")"
+  grep -ciE 'tested by|date tested|result|pass/fail|sign.?off' "$f"
+done
+```
+
+Three signals decide it:
+
+- **Ticked against unticked.** A checklist with every box empty was written and never run. Zero ticked across several hundred items is unambiguous and needs no interpretation.
+- **Last touched.** A checklist whose only commit is the initial one was produced with the system, not used on it.
+- **Result columns.** A plan has steps. A record has a date, a tester and an outcome. Their absence tells you which one you are holding.
+
+Also check for the artefacts a real pass leaves behind: screenshots, a defect log, an issue tracker with items raised during testing, release notes referencing verification.
+
+**Report the count plainly**, because it is one of the few findings that cannot be argued with. Then state the consequence: nothing has confirmed that what the screens display matches what the data says, so any figure a user has seen is unverified.
+
+### The minimum bar, when there are no automated tests
+
+Automated tests covering forms, dashboards and displayed figures are the right answer, and where they are absent the recommendation should say so. But a full suite is months of work, and there is a floor beneath it worth naming, because it is achievable in days and the gap between it and nothing is enormous.
+
+**Every function of the system, exercised once by a person, against known data, with the result written down.** For each screen:
+
+- It loads without error, in each role that can reach it.
+- Every form saves, and the saved value is correct when the record is reopened.
+- Every displayed figure is traced to its source at least once, with data whose correct answer is known in advance.
+- Filters, sorts and date ranges change the result in the direction they claim.
+- Exports carry the same figures as the screen they came from.
+- Destructive and state-changing actions do what their label says, and nothing else.
+
+Recorded means a date, a name and an outcome per item. A pass nobody wrote down is not evidence, and it will be repeated from scratch the first time anyone asks whether something works.
+
+State the reasoning in the report, because it is the argument that gets this funded: **generated code is plausible by construction, and plausible is not the same as correct.** The failure mode is not code that crashes, which is obvious, but code that runs and produces a confident wrong answer, which is invisible until somebody compares it against something they already know.
+
+### Say plainly what a manual pass does not buy
+
+Recommend the floor, then set expectations about it in the same breath, or it will be mistaken for a solution.
+
+**A manual pass is a snapshot, not a safety net.** It establishes that the system was correct on one date, with one dataset, in one configuration. It says nothing about the system after the next change.
+
+**Its cost recurs in full.** An automated test is paid for once and re-run for nothing, so its cost is roughly flat however often the code changes. A manual pass is paid for every time, so its cost multiplies by the number of releases, and grows again as the system does. Two hundred manual checks across forty releases is eight thousand checks. That arithmetic is what makes the floor a temporary position rather than a strategy.
+
+**And the re-test decision cannot be made honestly.** After a change, somebody has to decide what to re-check. That needs the blast radius: which screens and figures this change could affect. In a codebase with declared relationships, adopted shared components and one implementation per rule, the blast radius is roughly knowable. In the systems that lack automated tests, it is usually the same systems where logic is duplicated across modules, abstractions exist but are not used, and relationships are not declared anywhere a tool can read. The blast radius is unknowable precisely where it matters most.
+
+Faced with that, teams do one of three things: re-test everything, which is unaffordable after the first few rounds; re-test what they believe was touched, which is a guess dressed as a plan; or re-test nothing and find out from users. In practice the third, then the first after an incident, then the third again.
+
+**So position it correctly in the recommendation.** A manual pass is a go-live gate. It buys the decision to go live and nothing after it. The ongoing answer is automated coverage, and the practical route is to characterise the highest-value paths in tests as each area is repaired, so the manual burden shrinks with every phase instead of repeating at every release.
+
+## Run the calculations
+
+**Grep finds absent mechanisms. It does not find a formula that computes the wrong thing.** That has to be read and executed, and it is often the single most consequential finding in an assessment, because a wrong number looks like a number and gets acted on.
+
+Budget an hour. Do not skip it because nothing in the structural sweep pointed here; nothing will.
+
+**Pick the calculations people act on.** Forecasts, projections, commission or bonus, budget phasing, weighted or probability-adjusted totals, unit costs, anything feeding an executive screen or a payment. Usually five to fifteen functions in total.
+
+**For each, extract the formula and run it with realistic inputs.** Not the code's own tests, which do not exist. Copy the expression into a scratch script, feed it the values a real caller supplies, and look at what comes out.
+
+```bash
+# what does this function actually receive?
+grep -rn "periodElapsed(\|computeForecast(\|weightedAmount(" app lib --include='*.ts'
+# then reproduce it standalone with those inputs and sanity-check the output
+node -e "const fy=2027; const start=Date.UTC(fy+1999,6,1); console.log(new Date(start).toISOString())"
+```
+
+The question is never "does this compile". It is **is this number plausible**. A fraction of a year should sit between 0 and 1 and move through the year. A run rate should be near the booked figure early and above it late. A commission should be a small share of revenue. Anything that is constant when it should vary, or an order of magnitude out, shows up in one line of output.
+
+### The smells that make it findable
+
+- **A magic numeric constant in date or period arithmetic.** `year + 1900`, `century + offset`, `slice(-2)`. These encode an assumption about two-digit versus four-digit years that the callers may not share.
+- **A clamp or a floor.** `Math.max(x, 0.05)`, `Math.min(x, 1)`. A clamp exists to handle an edge case; if it fires on every ordinary input it is not handling an edge case, it is concealing a broken one. **Check what the value is before the clamp.**
+- **A comment describing a different convention than the code uses.** A note describing a two-digit year convention above arithmetic that receives a four-digit one is the defect stated in plain language.
+- **Division by something derived.** Anything of the form `total / elapsed` where `elapsed` is computed rather than counted.
+- **A widely-called function with one commit.** Cross-reference the calculation list against per-file iteration counts. A formula used by six screens and never revisited since the initial drop was never checked against a real figure.
+- **Silent fallbacks.** A calculation returning `0` or `null` on missing input, so a data gap becomes a confident wrong number rather than an error.
+
+Report these with the reproduction, not the reasoning. Four lines of input and output settle it; a paragraph of explanation invites argument.
+
+## Trace one operation through every layer
+
+Individual absences understate the risk, because they compound on the same operation. Counting missing transactions and missing constraints separately does not show what happens when both are missing on the write that matters.
+
+Pick three to five **routine business operations**, not edge cases. Merging two duplicate records, closing a period, cancelling an order, running the monthly import, reassigning ownership. Then follow one from the button to the database and ask what would catch a failure:
+
+| Layer | Question |
+|---|---|
+| Transaction | Do the writes succeed or fail together? |
+| Constraint | Would the database refuse an inconsistent result? |
+| Error handling | Does a failure surface, or is it discarded? |
+| Audit | Is there a record that the operation happened, and is it reliable? |
+| Idempotency | What happens if it runs twice? |
+| Reconciliation | Would anything later notice the result was wrong? |
+
+Count how many layers would catch it. **Zero or one means the operation fails silently and permanently.** That is a materially different statement from six separate findings, and it is the version a non-engineer understands immediately.
+
+The strongest form quotes the operation's own code next to its own claim. An operation described in a commit message as proving no reference is lost, whose implementation discards the errors on three of its ten writes, makes the point without any commentary.
 
 ## In-flight work and deploy collisions
 

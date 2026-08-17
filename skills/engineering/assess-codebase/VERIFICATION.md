@@ -32,7 +32,7 @@ Keep a running ledger while working. Nothing enters a deliverable at status `cla
 
 ```
 CLAIM                                  | COMMAND                              | RESULT      | STATUS
-812 of 940 FK columns unconstrained    | python parse of schema.prisma        | 812 / 940   | verified
+800 of 1000 FK columns unconstrained   | python parse of schema.prisma        | 800 / 1000  | verified
 periodElapsed always returns 0.05      | node arithmetic repro                | 0.05        | verified
 scripts were run against production    | (none available)                     | -           | unverifiable
 ```
@@ -56,7 +56,7 @@ Keep a second ledger alongside the first, one row per dimension:
 ```
 DIMENSION              | STATUS         | EVIDENCE / REASON
 Security               | covered        | 15 findings, 5 verified blockers
-Data integrity         | covered        | 812/940 unconstrained, measured
+Data integrity         | covered        | 800/1000 unconstrained, measured
 Concurrency            | covered        | clean: transactions present at 12/12 sampled sites
 Supply chain           | not applicable | Tier 3, no external dependencies of consequence
 Frontend               | not done       | out of scope this pass, cost-of-ownership question deferred
@@ -74,7 +74,7 @@ The coverage table goes in the report's method section, in full, including every
 
 This is the part that makes it work. A gap the assessor knows about is a discipline problem. A gap the reader can see is a stated limit, and the reader can decide whether it matters. It also removes the temptation to quietly drop a dimension that was hard, because dropping it now requires writing the word "not done" where the client will read it.
 
-A report claiming nineteen dimensions with no coverage table is asserting completeness it has not demonstrated, which is the same failure as an unverified number.
+A report claiming full-dimension coverage without a coverage table is asserting completeness it has not demonstrated, which is the same failure as an unverified number.
 
 ### Check it twice
 
@@ -136,6 +136,7 @@ Run this before any deliverable ships, and again after every correction.
 7. A strengths section exists and is specific.
 8. A withdrawn-claims section exists, even if empty.
 9. Grep the full deliverable set for any superseded figure or phrasing.
+10. The deliverables were written with `natural-writing` applied: no em dashes, plain verbs, no promotional register in the strengths section, findings stated without intensifiers.
 
 Step 9 matters more than it looks. Assessments run long, conclusions change, and a corrected finding left standing in a second document is an inconsistency a defender will find.
 

@@ -2,7 +2,7 @@
 
 Do this before opening the code. The same defect is a blocker in one system and a backlog item in another, and you cannot tell which without knowing what the system does, who runs it, and who fixes it when it breaks.
 
-Keep it short. Eight questions, a few minutes. Where the answer is unknown, record the assumption you proceed under and put it in the report's limits section.
+Keep it short. Twelve questions, a few minutes. Where the answer is unknown, record the assumption you proceed under and put it in the report's limits section.
 
 ## Ask these
 
@@ -17,13 +17,53 @@ Keep it short. Eight questions, a few minutes. Where the answer is unknown, reco
 
 If the requester cannot answer 3, 4 or 7, that is itself a finding worth stating.
 
-## Then ask about data and integrations
+## Ask about data and integrations
 
 Two questions the code cannot answer, and both change the remediation materially.
 
-9. **What data has to come in, from where, and in what state?** Years of history from a legacy platform is a different exercise from starting empty. Ask what the mapping is, how it will be validated, and whether it is reversible. Then check the schema for the thing that makes reconciliation possible at all: a source-system identifier on core records. Its absence is a blocker for any migration, and it is invisible until somebody tries.
+9. **What data has to come in, from where, in what shape, and has anyone looked at it?** The last clause is the one that decides the cost. Ask for the source system's schema, a row count, and whether whoever built this ever saw either.
 
-10. **What must this system talk to, in which direction?** Finance, billing, the ad server, the traffic system, identity, email. Build the map from the business answer, then compare it against what exists in the code. A gap in either direction is a finding: an integration the business assumes exists and does not, or one built against a system nobody intends to keep.
+Having import machinery is not the same as having been designed against the source. Generic staging that accepts arbitrary input and maps it later is what gets built when the source is unknown. It is flexible, and it means the mapping was never specified, which is the expensive part.
+
+If the target schema was designed from requirements rather than from the data, the migration is a discovery exercise before it is a transformation one: profile the source, produce a field-level mapping, decide what happens to source fields with no destination and required destination fields with no source, reconcile totals, and handle the records that do not fit. That is routinely the largest single line item in a programme like this, and it is found late because nobody looks until they try.
+
+Ask three follow-ups, because each changes the estimate materially:
+
+- **Do the granularities match?** One row per transaction against one row per line, one contact per organisation against many, a single status field against a state machine. A granularity mismatch is a redesign, not a mapping.
+- **Do the identifiers survive?** Composite natural keys in the source against generated integers in the target means every relationship has to be rebuilt during load, in dependency order, with a lookup held throughout.
+- **Will both systems run at once?** Parallel running turns a one-off migration into an ongoing sync, with conflict rules, and that is a different and much larger commitment than a cutover.
+
+10. **What must this system talk to, in which direction?** Finance, billing, scheduling, fulfilment, identity, email. Build the map from the business answer, then compare it against what exists in the code. A gap in either direction is a finding: an integration the business assumes exists and does not, or one built against a system nobody intends to keep.
+
+## Ask what else the organisation already runs
+
+The question that decides whether absorbing this into an existing platform is even an option, and the one most often not asked.
+
+11. **What other systems do you already run, on what, and how are they built?** Names, frameworks, deployment, whether they have continuous integration, tests, recorded architectural decisions, an established data layer. If a platform already exists with the foundations this system lacks, the choice is not repair or replace: it may be faster to move the proven functionality onto foundations that are already there. Establish this before writing any recommendation, because a report that recommends repair without knowing an alternative existed reads as uninformed.
+
+Ask specifically whether the same team maintains both. Two platforms maintained by one team is a permanent tax that no repair estimate includes.
+
+## Ask where the organisation is going technically
+
+Question 11 established what else exists. This one establishes the **direction of travel**, and it is what makes several later findings assessable at all.
+
+12. **What is your technical standard, and what are you deliberately moving away from?** Database engine, hosting model, runtime, deployment approach, identity, observability, file storage, infrastructure definition. For each, ask not only what is used today but which way it is heading and what has already been decided against.
+
+The second half of that question is the important one. Organisations rarely choose technology once; they migrate, and a migration in progress means some choices are settled, some are legacy being retired, and some are actively being exited. A system that adopts something already being retired is not merely different, it reverses work that has been paid for.
+
+A technology choice is not good or bad in isolation. A database engine that is perfectly sound is still the wrong answer if the organisation standardised on a different one, because adopting it means operating two: two backup approaches, two monitoring configurations, two upgrade paths, two sets of operational knowledge, and a permanent tax on every engineer who touches either. The same holds for a hosting model. Running on a single long-lived machine is not a defect, but for an organisation that has spent two years moving off machines it maintains, it hands back the saving.
+
+Classify each choice into one of three, and say which in the report:
+
+| | Meaning | Cost |
+|---|---|---|
+| **Matches** | Same as the standard | None |
+| **Diverges** | Different but defensible | Permanent: a second thing to operate, patch, monitor and know |
+| **Regresses** | Something the organisation has deliberately moved away from | The divergence cost, plus reversal of completed migration work, plus the argument to have again |
+
+Then ask the question that determines the effort: **is the choice a configuration or is it architected in?** Swapping a database engine before any real data exists is small. An application whose file handling, session model and deployment all assume one long-lived machine with local disk is not a configuration change, and that distinction belongs in the estimate rather than in a footnote.
+
+This feeds the disposition decision directly. Platform misalignment is one of the strongest arguments for absorbing functionality into an existing platform rather than repairing in place, because repair keeps the misalignment permanently while absorption removes it as a side effect.
 
 ## Product ownership
 
@@ -37,7 +77,7 @@ It also means nothing independent has been checking scope, so expect features th
 
 Before any audit, read the repository's own account: `README`, everything in `docs/`, any roadmap, feature list, changelog, architecture note, and agent-context file such as `CLAUDE.md` or `CONTEXT.md`.
 
-**Search for Word, Excel, PowerPoint and PDF, not only markdown.** Non-technical authors write requirements where they are comfortable writing, and that is rarely a `.md` file. A repository can hold twenty-five Word volumes, a feature inventory spreadsheet and an executive deck, none of which a markdown-only search returns. Check the git history too, since these are often added and later removed.
+**Search for Word, Excel, PowerPoint and PDF, not only markdown.** Non-technical authors write requirements where they are comfortable writing, and that is rarely a `.md` file. A repository can hold dozens of Word documents, a feature spreadsheet and a slide deck, none of which a markdown-only search returns. Check the git history too, since these are often added and later removed.
 
 They are worth opening even when markdown mirrors exist, because the split is usually consistent and useful: the markdown carries the technical register of routes, models and permissions, while the spreadsheet or deck carries the **business view**, what each module is for and what problem it solves. The second is what intake needs and what the executive summary has to be written from. See `PROBES.md` for extracting them without dependencies.
 
@@ -58,7 +98,7 @@ Ask in this order:
 3. Is there a code path that performs the actual capability, as opposed to recording that it happened?
 4. Is there a way for a user to reach that path?
 
-The gap between step 2 and step 3 is where the worst findings live. In one system a "a media-capture and proof-of-delivery" stage marked Built consisted of a table written by one form action taking a filename as a parameter, with no capture, no upload route and a nullable file reference. A proof record could exist pointing at no file. The same system offered single sign-on administration screens with no authentication library installed.
+The gap between step 2 and step 3 is where the worst findings live. In one system a capture-and-evidence capability marked Built consisted of a table populated by a form that accepted a filename as text, with no capture path and a nullable file reference, so an evidence record could exist pointing at nothing. The same system offered single sign-on administration screens with no authentication library installed.
 
 Report these as **claimed but not built**, separately from defects. They are a different problem for the reader: a defect is fixed, an absent capability was budgeted for and does not exist.
 

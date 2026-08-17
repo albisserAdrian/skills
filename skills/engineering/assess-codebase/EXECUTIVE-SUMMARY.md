@@ -7,31 +7,30 @@ A separate document, or the first page, written for people who will never read t
 ## Format
 
 - **The recommendation, in the first sentence.** Go, no-go, or go under stated conditions.
-- **At most five reasons.** Five is the ceiling, not the target. Three strong reasons beat five padded ones.
-- **Each reason: what happens, how likely, what it costs.** In that order.
+- **Three reasons. Not five.** Three is what survives a meeting and what gets repeated afterwards. If you have eight findings, they group into three consequences.
+- **Each reason: what it costs, how long, how likely.** Money and time first, in that order.
 - **A cost and a timeframe** for the recommended path.
 - **What is already working,** briefly. Without it the document reads as a case for the prosecution and gets discounted.
 - **No technical vocabulary.** No file names, no counts of lines or tables, no framework names.
 
 One page. If it runs longer, the reasons are not yet reduced to consequences.
 
-## Translation
+## Group by consequence, then translate
 
-Every reason is a consequence, not a condition. The technical statement is the evidence; it belongs in the technical report and is referenced, not repeated.
+Two steps, and the first is the one usually skipped.
 
-The pattern, with illustrative phrasings rather than findings from any particular system:
+**Group first.** Findings that cost the business the same thing are one reason, whatever their technical cause. A calculation defect, an unreconciled second source of the same figure, and a derived table nobody checks are three findings and one consequence: the numbers cannot be relied on. Merge them. The technical report keeps them separate; the summary does not.
 
-| Technical finding | Shape of what management is told |
+**Then translate into money and time.** Management is not deciding whether a backup system exists. They are deciding what an outage costs, how long it lasts, and how likely it is. A reason that names a mechanism has not finished being translated.
+
+| Still technical | Translated |
 |---|---|
-| A calculation returns a constant where it should vary | The figures on that dashboard have been wrong by a large factor for as long as the system has existed. Any decision taken on them was taken on a number that was not real. |
-| Backup writes nothing; verification inspects its own metadata | The system reports that backups are working. There are none. If the server fails we lose everything since somebody last exported by hand. |
-| Unenforced references, no transactions, discarded errors | Records can detach from their parent during routine operations, with no error and no log. The value attached to them stops appearing in reports and nobody is told. |
-| No change record, hand-written database patches present | We cannot demonstrate who changed what, or when. For a system feeding financial reporting, that is a question for our auditors rather than for IT. |
-| No tests, no automated checking, no team, codebase exceeds working memory | We cannot safely fix any of the above. Changes cannot be verified before release, and nobody currently holds the system in their head. |
-| No rate limiting, no central identity, sessions outlive account disablement | A departing employee keeps access for the rest of the day, and passwords can be guessed without limit. |
-| No shared component library, screens built individually | Ordinary interface changes cost weeks rather than days, permanently. |
+| There are no working backups | If the server fails we lose every commercial record since the last manual export, and the team stops for a day while it is rebuilt from whatever people have locally |
+| The evidence that we delivered is unverifiable | We cannot defend a billing dispute with a customer, so a contested invoice is written off rather than argued |
+| Unenforced references, no transactions | Revenue quietly leaves the reports during ordinary work, so the figures drift from reality with nobody able to say by how much |
+| No error tracking, no tests, no CI | Every fix takes longer and carries a chance of breaking something else, so the running cost is permanently higher than it looks |
 
-Notice what drops out: architecture, naming, duplication, type safety, test coverage as a number. All are real, all belong in the technical report, none survives contact with the question "what does this cost us".
+Notice what disappears: backups, transactions, tests, references. All real, all in the technical report, none of them something a board discusses.
 
 ## Quantify where you honestly can
 
@@ -67,20 +66,18 @@ The last two are frequently omitted. The final one is often the most persuasive,
 
 Illustrative and synthetic. A warehouse stock and despatch system, assessed as Tier 1 because nothing else holds the stock position.
 
-> **Recommendation: do not retire the current stock system yet. Running both in parallel for one quarter is reasonable, subject to four conditions.**
+> **Recommendation: do not retire the current stock system yet. Run both in parallel for one quarter, then decide. Three reasons.**
 >
-> **1. The stock figures drift and nobody is told.** Stock levels are stored as a single running number rather than derived from recorded movements, so once a count disagrees with reality there is no way to reconstruct how it got there. We found no reconciliation against the physical count. Cost: unknown until a full count is run, which is the first thing we would do.
+> **1. We cannot trust the stock figures, and we cannot tell how wrong they are.** Stock is stored as a running number rather than built up from recorded movements, and nothing checks it against a physical count. Once it disagrees with the shelf there is no way to reconstruct why. Cost: unknown until we run a full count, which is a day of warehouse time and the first thing we would do. Likelihood it is already wrong: high, and we have no way to prove otherwise.
 >
-> **2. There are no backups, and the system reports that there are.** The administration screen shows completed and verified backups. No data is being written to any backup location. If the server fails today we lose everything since somebody last exported by hand, which nobody could tell us the date of.
+> **2. If the server fails we lose the stock position and stop despatching for a day.** The system reports that backups are working. Nothing is being written. Recovery would mean rebuilding the position by hand from purchase orders and despatch notes, which is a day at best with the warehouse idle. Likelihood in any given year: moderate, and it is the kind of risk that costs nothing to remove now and everything to discover later.
 >
-> **3. Two despatches at the same moment can both take the last unit.** The check for available stock and the commitment of that stock are separate steps with nothing preventing another order in between. At current volumes this is rare. At the volumes planned for next year it stops being rare.
+> **3. It costs more to run than it looks, and that does not go away.** Every change carries a chance of breaking something else because nothing checks the work before it ships, so ordinary requests take weeks rather than days. On current form that is roughly one full-time person's cost absorbed into slower delivery, permanently, unless the foundations are put in.
 >
-> **4. We cannot safely fix any of the above.** There is no automated checking of changes and no test coverage, so every repair ships unverified, and the person who built the system is the only one who understands it.
+> **What is already working:** the picking and despatch workflow is well designed and staff prefer it to the current system, access controls are consistent, and the business rules are documented well enough for another team to pick up.
 >
-> **What is already working:** the picking and despatch workflow is well designed and staff prefer it to the current system, access controls are applied consistently, and the business rules are documented well enough for a new team to pick up.
+> **Recommended path:** two engineers, six to nine months, to a position we would rely on. The first month removes reason 2 and costs very little.
 >
-> **Recommended path:** two engineers, six to nine months, to a position we would be comfortable relying on. The first month is backups and monitoring, which is inexpensive and makes everything after it verifiable.
->
-> **If we do nothing:** we continue committing stock we may not have, with no way to recover the position if the server fails.
+> **If we do nothing:** we keep committing stock we may not have, with no way to recover the position if the server fails.
 
-Note what the example does and does not do. Every reason is a business consequence. None names a file, a table, a framework or a count. Reason 3 states the current likelihood honestly rather than inflating it, which is what makes the rest credible. The strengths paragraph is specific enough to be believed. The closing line is the one that usually decides the meeting.
+Note what the example does. Three reasons, not four or five. Each opens with a cost and a duration, not a mechanism. Reason 3 is the whole maintainability half of the report compressed into an annual running cost, because that is the only form in which it competes for budget. Likelihoods are stated honestly rather than inflated, which is what makes the rest credible. The closing line usually decides the meeting.
